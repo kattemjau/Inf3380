@@ -1,0 +1,27 @@
+Exercise 1
+Wih n exercises
+and p working threads
+to devide the workload on the workers the calculation is n / p excercises per thread,
+and n%p more jobs on one of the threads.
+Example:
+150 tasks devided on 8 workers =  18 jobs
+150 % 8 = 6 more jobs on the last worker
+(optional, on the 6 last threads: add 1 more job)
+
+Exercise 2
+15 TASKS
+10min per by 1 worker
+shortest time fo 4 workers to finish 15 tasks?
+10+10+10+20 = 50 time
+
+3 workers
+10+10+10+10+10+10=60
+
+Excersize 3
+
+n n time
+devided by
+m workers
+n/m
++ 1 if modula != 0
+n%m devided by m workers so time is + 1
