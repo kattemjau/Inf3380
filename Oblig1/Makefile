@@ -1,18 +1,31 @@
-CC=gcc
-CFLAGS= -Wall -Wextra -std=c99 -g -D_XOPEN_SOURCE
+CC = mpicc
+CFLAGS = -O2
+LDFLAGS = -L../simple-jpeg/ -lsimplejpeg
 
-NAME=Oblig1
+PROJ = parallel_main
+OBJS = parallel_main.o
 
-All:compile run
+all : simple-jpeg $(PROJ)
 
-compile: Oblig1.c
-		$(CC) $(CFLAGS) $< -o $(NAME)
+serial_main : $(OBJS)
+	gcc $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-run:
-	./$(NAME) $(HOST) $(PORT)
+parallel_main : $(OBJS)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+simple-jpeg :
+	$(MAKE) -C ../simple-jpeg
+
+obj-clean:
+	$(RM) *.o
+
+exec-clean:
+	$(RM) $(PROJ)
+
+autosave-clean:
+	$(RM) *~
 
 clean:
-	rm -f $(NAME)
-
-check: compile
-	valgrind --leak-check=full ./$(NAME) $(HOST) $(PORT)
+	$(MAKE) obj-clean
+	$(MAKE) exec-clean
+	$(MAKE) autosave-clean
