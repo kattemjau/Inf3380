@@ -1,20 +1,33 @@
-CC = mpicc
-CFLAGS = -O2
-LDFLAGS = -L../simple-jpeg/ -lsimplejpeg
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -O2
+LDFLAGS = -L ./simple-jpeg/ -l simplejpeg
 
-PROJ = parallel_main
-OBJS = parallel_main.o
+PROJ = serial_main
+# parallel_main
+PARR = parallel_main.o
+SERR = serial_main.o
 
-all : simple-jpeg $(PROJ)
+KAPPA=0.2
+ITERS=1
+INPUTF=mona_lisa_noisy.jpg
+OUTPUTF=out.jpg
 
-serial_main : $(OBJS)
+
+all: simple-jpeg $(PROJ) run_s
+
+serial_main : $(SERR)
 	gcc $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-parallel_main : $(OBJS)
+run_s:
+	./$(SERR) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
+run_p:
+	./$(PARR) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
+
+parallel: $(PARR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
 simple-jpeg :
-	$(MAKE) -C ../simple-jpeg
+	$(MAKE) -C /simple-jpeg
 
 obj-clean:
 	$(RM) *.o
