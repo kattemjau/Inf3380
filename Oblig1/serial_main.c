@@ -81,7 +81,6 @@ void iso_diffusion_denoising(const image* u, image *u_bar, float kappa, int iter
 
 
 int main(int argc, char *argv[]){
-  printf("starting\n");
   int m, n, c, iters;
   float kappa;
   image u, u_bar;
@@ -94,20 +93,28 @@ int main(int argc, char *argv[]){
   }
   input_jpeg_filename=argv[3];
   output_jpeg_filename=argv[4];
+  printf("importing picture\n");
   import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
 
+  printf("allocating image\n");
   allocate_image (&u, m, n);
 
+  printf("allocate_image u_bar\n");
   allocate_image (&u_bar, m, n);
 
+  printf("converting to image\n"); //segfault
   convert_jpeg_to_image (image_chars, &u);
 
+  printf("smoothening\n");
   iso_diffusion_denoising (&u, &u_bar, kappa, iters);
 
+  printf("converting image to jpeg\n");
   convert_image_to_jpeg (&u_bar, image_chars);
 
+  printf("exporting\n");
   export_JPEG_file(output_jpeg_filename, image_chars, m, n, c, 75);
 
+  printf("deallocating\n");
   deallocate_image (&u);
   deallocate_image (&u_bar);
   return 0;
