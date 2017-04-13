@@ -12,8 +12,8 @@ void import_JPEG_file(const char *filename, unsigned char **image_chars,
   int *image_height, int *image_width,
   int *num_components);
 void export_JPEG_file(const char *filename, unsigned char *image_chars,
-    int image_height, int image_width,
-    int num_components, int quality);
+  int image_height, int image_width,
+  int num_components, int quality);
 
 
 
@@ -24,16 +24,16 @@ void allocate_image(image *u, int m, int n){
 
   u->image_data=(float**)malloc(m*sizeof(float*));
   // printf("%d\n", sizeof(u->image_data[i]));
-   int i;
+  int i;
   for(i=0; i<m; i++){
-      u->image_data[i]=(float*)malloc(sizeof(float)*n);
+    u->image_data[i]=(float*)malloc(sizeof(float)*n);
   }
 
 }
 void deallocate_image(image *u){
   int i;
   for(i=0; i<u->m; i++){
-      free(u->image_data[i]);
+    free(u->image_data[i]);
   }
   free(u->image_data);
 
@@ -102,15 +102,15 @@ void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, in
 
 
       }
-  }
+    }
 
   //copy new to old to start agein
-  for (i = 0; i < u->m; i++) {
-    for (k = 0; k < u->n; k++) {
-      u->image_data[i][k]=u_bar->image_data[i][k];
+    for (i = 0; i < u->m; i++) {
+      for (k = 0; k < u->n; k++) {
+        u->image_data[i][k]=u_bar->image_data[i][k];
+      }
     }
   }
-}
 }
 
 
