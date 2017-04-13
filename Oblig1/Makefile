@@ -5,21 +5,22 @@ LDFLAGS = -L ./simple-jpeg/ -l simplejpeg
 PROJ = serial_main
 # parallel_main
 PARR = parallel_main
-SERR = serial_main
 
 KAPPA=0.2
-ITERS=1
+ITERS=100
 INPUTF=mona_lisa_noisy.jpg
 OUTPUTF=out.jpg
 
 
-all: simple-jpeg $(PROJ) run_s
+all: clean compile run_s
 
-serial_main: $(SERR)
+compile: clean serial_main simple-jpeg
+
+serial_main: $(PROJ)
 	gcc $(CFLAGS) serial_main.c -o $@ $(LDFLAGS)
 
 run_s:
-	./$(SERR) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
+	./$(PROJ) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
 run_p:
 	./$(PARR) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
 
