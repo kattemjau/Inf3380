@@ -130,6 +130,8 @@ int main(int argc, char *argv[]){
   iters = atoi(argv[2]);
   input_jpeg_filename=argv[3];
   output_jpeg_filename=argv[4];
+
+  
   printf("importing picture\n");
   import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
 

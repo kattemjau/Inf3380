@@ -44,38 +44,47 @@ int main(int argc, char *argv[]){
   output_jpeg_filename=argv[4];
 
   //mpi initialization
-  MPI_Init (&argc, &argv);
-  MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
+  MPI_Init (&argc, &argv); //oppretter childs
+  MPI_Comm_rank (MPI_COMM_WORLD, &my_rank); //setter prosessid
+  MPI_Comm_size (MPI_COMM_WORLD, &num_procs); // setter hvor mange prosessoer
 
 
   if (my_rank==0) {
+    //importerer bilde
     import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
+    //allokerer hele bildet
     allocate_image (&whole_image, m, n);
+    allocate_image (&u_bar, m, n);
+    convert_jpeg_to_image (image_chars, &u);
   }
   MPI_Bcast (&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast (&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  //deler bildet
+  MPI_Bcast (&whole_image, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     /* divide the m x n pixels evenly among the MPI processes */
 
   //gi disse verdiene som startposisjoner for prosessene, & er value
-/* fungerer kun ved delt bilde
-  my_m = &my_rank*(m/&num_procs);
+ // fungerer kun ved delt bilde
+  //start verdi
+  my_m = &my_rank*(m/&num_procs); 
+  //slutt verdi
+  my_n =my_m+(m/&num_procs);
+  
   if(my_rank==(&num_procs-1)){
     //siste delen av bilde
     my_m+=m%&num_procs;
   }
-  int slutt =my_m+(m/&num_procs);
   printf("my_m: %d, my_n: %d, slutt: %d\n",my_m, my_n, slutt );
-  */
-  //n er det samme for alle
-  my_n = n;
-  allocate_image (&u, my_m, my_n);
-  allocate_image (&u_bar, my_m, my_n);
+  
+  iso_diffusion_denoising (&whole_image, &u_bar, kappa, iters, &my_m, &my_n);
+
+
+
+  // allocate_image (&u_bar, my_m, my_n);
     /* each process asks process 0 for a partitioned region */
     /* of image_chars and copy the values into u */
     /* ... */
-  convert_jpeg_to_image (my_image_chars, &u);
-  iso_diffusion_denoising_parallel (&u, &u_bar, kappa, iters);
     /* each process sends its resulting content of u_bar to process 0 */
     /* process 0 receives from each process incoming values and */
     /* copy them into the designated region of struct whole_image */
@@ -130,13 +139,16 @@ void convert_image_to_jpeg(const image *u, unsigned char* image_chars){
 }
 
 
-void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters){
+void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters, int start, int slutt){
   //smoothening function
   int i, p, j, k;
 
+  //iterations
   for (p = 0; p < iters; p ++) {
 
-    for (i = 0; i < u->m; i ++) {
+    //start to stop m rows
+    for (i = start; i < slutt; i ++) {
+      //n pos
       for (j = 0; j < u->n; j ++) {
         if(i==0){
           //top
