@@ -19,8 +19,8 @@ void export_JPEG_file(const char *filename, unsigned char *image_chars,
 void allocate_image(image *u, int m, int n);
 void deallocate_image(image *u);
 void convert_jpeg_to_image(const unsigned char* image_chars, image *u);
-void convert_image_to_jpeg(const image *u, unsignes char* image_chars);
-void iso_diffusion_denoising(image *u, image *u_bar, float kappa, int iters);
+void convert_image_to_jpeg(const image *u, unsigned char* image_chars);
+void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters, int start, int slutt);
 
 
 
@@ -67,17 +67,17 @@ int main(int argc, char *argv[]){
   //gi disse verdiene som startposisjoner for prosessene, & er value
  // fungerer kun ved delt bilde
   //start verdi
-  my_m = &my_rank*(m/&num_procs); 
+  my_m = my_rank*(m/num_procs);
   //slutt verdi
-  my_n =my_m+(m/&num_procs);
-  
-  if(my_rank==(&num_procs-1)){
+  my_n =my_m+(m/num_procs);
+
+  if(my_rank==(num_procs-1)){
     //siste delen av bilde
-    my_m+=m%&num_procs;
+    my_m+=m%num_procs;
   }
-  printf("my_m: %d, my_n: %d, slutt: %d\n",my_m, my_n, slutt );
-  
-  iso_diffusion_denoising (&whole_image, &u_bar, kappa, iters, &my_m, &my_n);
+  printf("my_m: %d, my_n: %d\n",my_m, my_n );
+
+  iso_diffusion_denoising(&whole_image, &u_bar, kappa, iters, &my_m, &my_n);
 
 
 
@@ -194,4 +194,3 @@ void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, in
     }
   }
 }
-

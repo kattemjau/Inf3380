@@ -1,4 +1,4 @@
-CC = gcc
+CC = mpicc
 CFLAGS = -Wall -Wextra -std=c99 -O2
 LDFLAGS = -L ./simple-jpeg/ -l simplejpeg
 
@@ -14,10 +14,10 @@ OUTPUTF=out.jpg
 
 all: clean compile run_s
 
-compile: clean serial_main simple-jpeg
+compile: clean simple-jpeg serial_main parallel
 
 serial_main: $(PROJ)
-	gcc $(CFLAGS) serial_main.c -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) serial_main.c -o $@ $(LDFLAGS)
 
 run_s:
 	./$(PROJ) $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
