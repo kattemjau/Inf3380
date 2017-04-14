@@ -39,7 +39,7 @@ void deallocate_image(image *u){
 
 }
 void convert_jpeg_to_image(const unsigned char* image_chars, image *u){
-  printf("%d, %d, %d\n",u->n, u->m, sizeof(image_chars));
+  // printf("%d, %d, %d\n",u->n, u->m, sizeof(image_chars));
   //convert 1d array to 2d array
   int i, k;
   for (i = 0; i < u->m; i++) {
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]){
   input_jpeg_filename=argv[3];
   output_jpeg_filename=argv[4];
 
-  
+
   printf("importing picture\n");
   import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
 
