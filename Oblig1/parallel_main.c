@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
   if(my_rank==0){
     int i;
     for(i=1; i<num_procs; i++){
-      MPI_Recv(&image_chars[i*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
+      MPI_Recv(&image_chars[(i-1)*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
       
     }
   }
