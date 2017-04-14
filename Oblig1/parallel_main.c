@@ -28,81 +28,79 @@ int main(int argc, char *argv[]){
   int my_m, my_n, my_rank, num_procs;
   float kappa;
   image u, u_bar, whole_image;
-  unsigned char *image_chars;
+  unsigned char *image_chars, *my_image_chars;
   char *input_jpeg_filename, *output_jpeg_filename;
 
-
-  if(argc<5){
-    printf("Wrong args! Usage: ./filename <kappa> <iters> <inutfile> <outputfile>\n");
-  }
-  //importing args
-  printf("Importing args\n");
-  kappa = atof(argv[1]);
-  iters = atoi(argv[2]);
-  input_jpeg_filename=argv[3];
-  output_jpeg_filename=argv[4];
-
   //mpi initialization
-  printf("Init MPI\n");
-  MPI_Init (&argc, &argv); //oppretter childs
-  MPI_Comm_rank (MPI_COMM_WORLD, &my_rank); //setter prosessid
-  MPI_Comm_size (MPI_COMM_WORLD, &num_procs); // setter hvor mange prosessoer
+  MPI_Init (&argc, &argv);
+  MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
 
-
-  printf("My rank: %d\n",my_rank  );
-  if (my_rank==0) {
-    //importerer bilde
-    printf("import\n" );
-   import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
-    //allokerer hele bildet
-    printf("allocate\n");
-    allocate_image (&whole_image, m, n);
-    printf("allocate\n" );
-    allocate_image (&u_bar, m, n);
-    //image_chars er 1d arrayet
-    printf("convert_jpeg_to_image\n"); //segfault
-    convert_jpeg_to_image (image_chars, &whole_image);
-  }
-  printf("sending signal\n" );
-  MPI_Bcast (&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  printf("sending signal\n" );
-
-  MPI_Bcast (&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  //deler bildet
-  printf("sending signal\n" );
-  MPI_Bcast(whole_image.image_data, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-
-    /* divide the m x n pixels evenly among the MPI processes */
-
-  //gi disse verdiene som startposisjoner for prosessene, & er value
- //dele inn i antall rader kis
-  int start=my_rank*(m/num_procs);
-  int slutt=start+(m/num_procs);
-  //slutt verdi
-
-  if(my_rank==(num_procs-1)){
-    //siste delen av bilde
-    slutt+=m%num_procs;
-  }
-  printf("m: %d, n: %d\n",m, n );
-
-  printf("iso_diffusion_denoising\n");
-  iso_diffusion_denoising(&whole_image, &u_bar, kappa, iters, start, slutt);
-
-
-
-  // allocate_image (&u_bar, m, n);
-    /* each process asks process 0 for a partitioned region */
-    /* of image_chars and copy the values into u */
+  
+    /* read from command line: kappa, iters, input_jpeg_filename, output_jpeg_filename */
     /* ... */
+  if (my_rank==0) {
+    import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
+    allocate_image (&whole_image, m, n);
+  }
+  MPI_Bcast (&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast (&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    /* divide the m x n pixels evenly among the MPI processes */
+  //size on max ruter
+  my_m = m/num_procs;
+  if(my_rank==(num_procs-1)){
+    my_m+=m%num_procs;
+  }
+  my_n = n;
+
+  allocate_image (&u, my_m, my_n);
+  allocate_image (&u_bar, my_m, my_n);
+
+
+
+  if(my_rank==0){
+    //parrent sends
+    int i, k=0;
+    for(i=1; i<num_procs; i++)
+    {
+      k = m/num_procs*i;
+      if(i==(num_procs-1)){
+        k+=m%num_procs;
+      }
+      //drops id 0
+      MPI_Send(&image_chars[k],k*n,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
+
+      
+    }
+
+  }else{
+    MPI_Recv(&my_image_chars[0], my_m*my_n ,MPI_UNSIGNED_CHAR, 0, 1, MPI_COMM_WORLD);
+    convert_jpeg_to_image (my_image_chars, &u);
+    iso_diffusion_denoising_parallel (&u, &u_bar, kappa, iters);
+    convert_image_to_jpeg(&u, my_image_chars);
+    //endres
+    MPI_Send(&my_image_chars[0],my_m*my_n, MPI_UNSIGNED_CHAR, my_rank, 1, MPI_COMM_WORLD);
+    
+  }
+
+  if(my_rank==0){
+    int i;
+    for(i=1; i<num_procs; i++){
+      MPI_Recv(&image_chars[i*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
+      
+    }
+  }
+
+
+  //sette sammen bildene
+
     /* each process sends its resulting content of u_bar to process 0 */
     /* process 0 receives from each process incoming values and */
     /* copy them into the designated region of struct whole_image */
     /* ... */
   if (my_rank==0) {
-    printf("something\n");
     convert_image_to_jpeg(&whole_image, image_chars);
-   export_JPEG_file(output_jpeg_filename, image_chars, m, n, c, 75);
+    export_JPEG_file(output_jpeg_filename, image_chars, m, n, c, 75);
     deallocate_image (&whole_image);
   }
 }
