@@ -12,7 +12,7 @@ void allocate_image(image *u, int m, int n);
 void deallocate_image(image *u);
 void convert_jpeg_to_image(const unsigned char* image_chars, image *u);
 void convert_image_to_jpeg(const image *u, unsigned char* image_chars);
-void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters, int start, int slutt);
+void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters);
 
 
 void import_JPEG_file(const char *filename, unsigned char **image_chars,
@@ -23,6 +23,19 @@ void export_JPEG_file(const char *filename, unsigned char *image_chars,
   int num_components, int quality);
 
 
+
+int getRank(int m, int num_procs, int my_rank){
+  int rank= m/num_procs;
+  if(my_rank==(num_procs-1)){
+    rank+=m%num_procs;
+  }
+
+
+  return rank;
+}
+
+
+
 int main(int argc, char *argv[]){
   int m, n, c, iters;
   int my_m, my_n, my_rank, num_procs;
@@ -30,15 +43,27 @@ int main(int argc, char *argv[]){
   image u, u_bar, whole_image;
   unsigned char *image_chars, *my_image_chars;
   char *input_jpeg_filename, *output_jpeg_filename;
+  MPI_Status status;
+
+  if(argc<5){
+    printf("Wrong args! Usage: ./filename <kappa> <iters> <inutfile> <outputfile>\n");
+  }
+  kappa = atof(argv[1]);
+  iters = atoi(argv[2]);
+  input_jpeg_filename=argv[3];
+  output_jpeg_filename=argv[4];
+
 
   //mpi initialization
+  printf("MPI init\n" );
   MPI_Init (&argc, &argv);
   MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
   MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
 
-  
+
     /* read from command line: kappa, iters, input_jpeg_filename, output_jpeg_filename */
     /* ... */
+    printf("My rank is:%d\n",my_rank );
   if (my_rank==0) {
     import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
     allocate_image (&whole_image, m, n);
@@ -47,14 +72,10 @@ int main(int argc, char *argv[]){
   MPI_Bcast (&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     /* divide the m x n pixels evenly among the MPI processes */
   //size on max ruter
-  my_m = m/num_procs;
-  if(my_rank==(num_procs-1)){
-    my_m+=m%num_procs;
-  }
-  my_n = n;
-
-  allocate_image (&u, my_m, my_n);
-  allocate_image (&u_bar, my_m, my_n);
+  my_m =getRank(m, num_procs, my_rank);
+  my_n=n;
+  allocate_image(&u, my_m, my_n);
+  allocate_image(&u_bar, my_m, my_n);
 
 
 
@@ -70,24 +91,26 @@ int main(int argc, char *argv[]){
       //drops id 0
       MPI_Send(&image_chars[k],k*n,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
 
-      
+
     }
 
   }else{
-    MPI_Recv(&my_image_chars[0], my_m*my_n ,MPI_UNSIGNED_CHAR, 0, 1, MPI_COMM_WORLD);
+    //my_image_chars unitialized
+    my_image_chars = (unsigned char*) malloc(my_m*my_n*sizeof(unsigned char));
+    MPI_Recv(&my_image_chars[0], my_m*my_n ,MPI_UNSIGNED_CHAR, 0, 1, MPI_COMM_WORLD, &status);
     convert_jpeg_to_image (my_image_chars, &u);
-    iso_diffusion_denoising_parallel (&u, &u_bar, kappa, iters);
+    iso_diffusion_denoising(&u, &u_bar, kappa, iters);
     convert_image_to_jpeg(&u, my_image_chars);
     //endres
     MPI_Send(&my_image_chars[0],my_m*my_n, MPI_UNSIGNED_CHAR, my_rank, 1, MPI_COMM_WORLD);
-    
+
   }
 
   if(my_rank==0){
     int i;
     for(i=1; i<num_procs; i++){
-      MPI_Recv(&image_chars[(i-1)*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
-      
+      MPI_Recv(&image_chars[(i-1)*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD, &status);
+
     }
   }
 
@@ -149,7 +172,7 @@ void convert_image_to_jpeg(const image *u, unsigned char* image_chars){
 }
 
 
-void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters, int start, int slutt){
+void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters){
   //smoothening function
   int i, p, j, k;
 
@@ -157,8 +180,8 @@ void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, in
   for (p = 0; p < iters; p ++) {
 
     //start to stop m rows
-    printf("start: %d, slutt: %d\n",start, slutt );
-    for (i = start; i < slutt; i ++) {
+    // printf("start: %d, slutt: %d\n",start, slutt );
+    for (i = 0; i < u->m; i ++) {
       //n pos
       for (j = 0; j < u->n; j ++) {
         if(i==0){
