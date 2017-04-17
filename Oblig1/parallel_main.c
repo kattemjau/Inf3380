@@ -25,15 +25,25 @@ void export_JPEG_file(const char *filename, unsigned char *image_chars,
 
 
 int getRank(int m, int num_procs, int my_rank){
-  int rank= m/num_procs;
+  int rank= m/(num_procs-1);
   if(my_rank==(num_procs-1)){
-    rank+=m%num_procs;
+    rank+=m%num_procs-1;
   }
 
 
   return rank;
 }
 
+/*
+TODO: naa deles ikke bildet opp riktig. Feks hvis det er 4 prosesser, skulle p1
+p2 og p3 fått 1429 rader hver (p3 skulle fått overskuddet i tillegg saa tot 1431),
+men i stede får de alle 1072 rader. Du har delt på 4 prosesser (altså gitt parrent
+en del som parent ikke skal ha)
+
+
+TODO: kommenter ut siste sending
+
+*/
 
 
 int main(int argc, char *argv[]){
@@ -54,78 +64,100 @@ int main(int argc, char *argv[]){
   output_jpeg_filename=argv[4];
 
 
+
   //mpi initialization
   printf("MPI init\n" );
   MPI_Init (&argc, &argv);
   MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
   MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
+  printf("deler opp i: %d\n", num_procs-1);
 
 
-    /* read from command line: kappa, iters, input_jpeg_filename, output_jpeg_filename */
-    /* ... */
     printf("My rank is:%d\n",my_rank );
   if (my_rank==0) {
     import_JPEG_file(input_jpeg_filename, &image_chars, &m, &n, &c);
     allocate_image (&whole_image, m, n);
+    printf("hele bildet er %d x %d\n", m, n);
   }
   MPI_Bcast (&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast (&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    /* divide the m x n pixels evenly among the MPI processes */
   //size on max ruter
   my_m =getRank(m, num_procs, my_rank);
   my_n=n;
-  allocate_image(&u, my_m, my_n);
-  allocate_image(&u_bar, my_m, my_n);
 
+  //FAULTY
+  allocate_image(&u, my_m, my_n); //ABORT FAULT 6
+  allocate_image(&u_bar, my_m, my_n);
+  // /*
 
 
   if(my_rank==0){
     //parrent sends
-    int i, k=0;
+    int i, k=0, rows=0;
     for(i=1; i<num_procs; i++)
     {
-      k = m/num_procs*i;
-      if(i==(num_procs-1)){
-        k+=m%num_procs;
-      }
+      k = getRank(m, num_procs, i);
       //drops id 0
-      MPI_Send(&image_chars[k],k*n,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
+      printf("%d indeks: Sender size: %dx%d aka %d til childersn NO %d\n", rows*n, my_m, my_n, my_m*my_n, i);
 
-
+      MPI_Send(&image_chars[rows*n],k*n,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD);
+      rows+=k-1;
     }
 
-  }else{
+  }
+  else{
     //my_image_chars unitialized
     my_image_chars = (unsigned char*) malloc(my_m*my_n*sizeof(unsigned char));
     MPI_Recv(&my_image_chars[0], my_m*my_n ,MPI_UNSIGNED_CHAR, 0, 1, MPI_COMM_WORLD, &status);
-    convert_jpeg_to_image (my_image_chars, &u);
+    convert_jpeg_to_image(my_image_chars, &u);
+    printf("krasjo1?\n" );
     iso_diffusion_denoising(&u, &u_bar, kappa, iters);
+    printf("krasjo?\n" );
     convert_image_to_jpeg(&u, my_image_chars);
     //endres
-    MPI_Send(&my_image_chars[0],my_m*my_n, MPI_UNSIGNED_CHAR, my_rank, 1, MPI_COMM_WORLD);
+    printf("%d Sender : %d til ROOT\n", my_rank, my_m*my_n );
+    MPI_Send(&my_image_chars[0], my_m*my_n, MPI_UNSIGNED_CHAR, 0, 1, MPI_COMM_WORLD);
+      free(my_image_chars);
 
   }
 
+  //fa tilbake
   if(my_rank==0){
-    int i;
+    int i, k=0, rows=0;
     for(i=1; i<num_procs; i++){
-      MPI_Recv(&image_chars[(i-1)*m/num_procs], i*n*m/num_procs ,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD, &status);
+      printf("ROOT venter pa stuff!!\n" );
+        k = getRank(m, num_procs, i);
+        MPI_Recv(&image_chars[n*rows],k*n,MPI_UNSIGNED_CHAR, i, 1, MPI_COMM_WORLD, &status);
+        rows+=k-1;
+        printf("Root mottok : %dx%d aka %d piksler fra: %d\n",k, n, k*n,i );
 
     }
+
   }
 
 
+  // printf("sette sammen bilder\n" );
   //sette sammen bildene
 
-    /* each process sends its resulting content of u_bar to process 0 */
-    /* process 0 receives from each process incoming values and */
-    /* copy them into the designated region of struct whole_image */
-    /* ... */
+    // */
   if (my_rank==0) {
-    convert_image_to_jpeg(&whole_image, image_chars);
+    // convert_image_to_jpeg(&whole_image, image_chars);
+    printf("Skriver til %s\n", output_jpeg_filename );
     export_JPEG_file(output_jpeg_filename, image_chars, m, n, c, 75);
     deallocate_image (&whole_image);
+    // free(image_chars);
+
+
   }
+  printf("Dooing some freeing\n");
+
+
+
+  deallocate_image(&u);
+  deallocate_image(&u_bar);
+  MPI_Finalize();
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -136,10 +168,20 @@ void allocate_image(image *u, int m, int n){
   u->n=n;
   u->m=m;
 
-  u->image_data=(float**)malloc(m*sizeof(float*));
+
+  if ((u->image_data = (float**)malloc(m * sizeof(float*))) == NULL) {
+    perror("malloc(): M");
+    // free(u);
+    exit(EXIT_FAILURE);
+  }
   int i;
-  for(i=0; i<n; i++){
-    u->image_data[i]=(float*)malloc(sizeof(float)*n);
+  for (i = 0; i < m; i++) {
+    if ((u->image_data[i] = (float*)malloc(sizeof(float)*n)) == NULL) {
+      perror("malloc(): N");
+      // free(u->image_data);
+      free(u);
+      exit(EXIT_FAILURE);
+    }
   }
 
 }
@@ -153,10 +195,9 @@ void deallocate_image(image *u){
 }
 void convert_jpeg_to_image(const unsigned char* image_chars, image *u){
   //convert 1d array to 2d array
-  printf("%d, %d\n",u->m, u->n );
   int i, k;
-  for (i = 0; i < u->n; i++) {
-    for (k = 0; k < u->m; k++) {
+  for (i = 0; i < u->m; i++) {
+    for (k = 0; k < u->n; k++) {
       u->image_data[i][k]=image_chars[i*u->n+k];
     }
   }
@@ -175,6 +216,7 @@ void convert_image_to_jpeg(const image *u, unsigned char* image_chars){
 void iso_diffusion_denoising(const image* u, const image *u_bar, float kappa, int iters){
   //smoothening function
   int i, p, j, k;
+  printf("Jobber med denoising!\n" );
 
   //iterations
   for (p = 0; p < iters; p ++) {

@@ -11,7 +11,7 @@ KAPPA=0.2
 ITERS=100
 INPUTF=mona_lisa_noisy.jpg
 OUTPUTF=out.jpg
-PROCS=8;
+PROCS=4
 
 all: parallel run_p
 
@@ -48,3 +48,6 @@ clean:
 
 check: parallel
 		mpirun -np $(PROCS) valgrind --leak-check=full ./parallel_main $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
+
+check_s: serial_main
+		valgrind --leak-check=full ./serial_main $(KAPPA) $(ITERS) $(INPUTF) $(OUTPUTF)
