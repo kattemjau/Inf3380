@@ -9,9 +9,10 @@ PARR = parallel_main
 
 KAPPA=0.2
 ITERS=100
+
 INPUTF=mona_lisa_noisy.jpg
 OUTPUTF=out.jpg
-PROCS=4
+PROCS=8
 
 all: parallel run_p
 

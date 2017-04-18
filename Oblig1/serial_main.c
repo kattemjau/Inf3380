@@ -156,5 +156,6 @@ int main(int argc, char *argv[]){
   printf("deallocating\n");
   deallocate_image (&u);
   deallocate_image (&u_bar);
+  free(image_chars);
   return 0;
 }
