@@ -1,28 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void computeNvidia(){
-	// http://www.uio.no/studier/emner/matnat/ifi/INF3380/v17/undervisningsmateriale/inf3380-gpu-2015.pdf
-/*	We want to compute Q=M×N, assuming
-	Q, M, N are all square
-	matrices of same size Width×Width
-	Each matrix has a 1D contiguous data storage
-	Naive kernel implementation
-	__global__ void MatrixMulKernel(float* Md, float* Nd, float* Qd, int Width)
-	{
-		int Row = blockIdx.y
-		*TILE_WIDTH + threadIdx.y;
-		int Col = blockIdx.x
-		*TILE_WIDTH + threadIdx.x;
-		float Qvalue = 0;
-		for (int k=0; k<Width; ++k)
-		Qvalue += Md[Row
-		*Width+k]
-		* Nd[k
-		*Width+Col];
-		Qd[Row
-		*Width+Col] = Qvalue;
-	} */
+void compute(double** matrix1, double** matrix2, double** matrix3, int arow, int bcols, int acols){
+	int sum=0, k, d, c;
+	for (c = 0; c < arow; c++) {
+		for (d = 0; d < bcols; d++){
+			for (k = 0; k < acols; k++) {
+				//1d array ikke 2d
+				sum += (*matrix1[c]+k)*(*matrix2[k]+d);
+			}
+
+			matrix3[c][d] = sum;
+			printf("%x ",sum );
+			sum = 0;
+		}
+		printf("\n");
+	}
 }
 void allocateMatrix(double*** matrix, int num_rows, int num_cols){
 	int i;
@@ -93,15 +86,21 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 			}if(num_cols1>=num_rows2){num_cols3=num_cols1;
 			}else{num_cols3=num_cols2;}
 
+			printf("Allocate\n" );
 			allocateMatrix(&matrix3, num_rows3, num_cols3);
 
-			//solve matrix
-			// solveMatrix(matrix3, matrix1, matrix2,num_rows3, num_cols3);
+			printf("Compute\n");
+			// int arow, int bcols, int acols
+			compute(matrix1, matrix2, matrix3, num_rows1, num_cols2, num_cols1);
+
+			printf("Write to file\n");
 			//write matrix
-			// write_matrix_binaryformat(outputfile, matrix3, num_rows3, num_cols3);
-			deallocate(matrix1);
-			deallocate(matrix2);
-			deallocate(matrix3);
+			write_matrix_binaryformat(outputfile, matrix3, num_rows3, num_cols3);
+
+			printf("deallocate\n" );
+			// deallocate(matrix1);
+			// deallocate(matrix2);
+			// deallocate(matrix3);
 
 			return 0;
 		}
