@@ -6,7 +6,7 @@ run: clear compile
 	./hei $(FILES)
 
 compile:
-	gcc Oblig2.c -o hei $(ARGS)
+	mpicc Oblig2.c -o hei $(ARGS)
 
 clear:
 	clear
@@ -15,5 +15,5 @@ clean:
 	rm -r hei
 	rm -r c.bin
 
-check:
+check: compile
 	valgrind --leak-check=full ./hei $(FILES)
