@@ -3,17 +3,17 @@ FILES=small_matrix_a.bin small_matrix_b.bin c.bin
 # FILES2=mina.bin minb.bin minc.bin
 
 run: clear compile
-	./hei $(FILES)
+	mpirun -np 4 ./oblig $(FILES)
 
 compile:
-	mpicc Oblig2.c -o hei $(ARGS)
+	mpicc Oblig2.c -o oblig $(ARGS)
 
 clear:
 	clear
 
 clean:
-	rm -r hei
+	rm -r oblig
 	rm -r c.bin
 
 check: compile
-	valgrind --leak-check=full ./hei $(FILES)
+	valgrind --leak-check=full ./oblig $(FILES)
