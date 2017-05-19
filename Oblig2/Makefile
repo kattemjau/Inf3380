@@ -17,3 +17,6 @@ clean:
 
 check: compile
 	valgrind --leak-check=full ./oblig $(FILES)
+
+diff:
+	diff small_matrix_a.bin c.bin
