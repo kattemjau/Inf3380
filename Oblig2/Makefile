@@ -3,7 +3,7 @@ FILES=small_matrix_a.bin small_matrix_b.bin c.bin
 # FILES2=mina.bin minb.bin minc.bin
 
 run: clear compile
-	mpirun -np 4 ./oblig $(FILES)
+	mpirun -np 5 ./oblig $(FILES)
 
 compile:
 	mpicc Oblig2.c -o oblig $(ARGS)

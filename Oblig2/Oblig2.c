@@ -3,17 +3,17 @@
 #include <mpi.h>
 // #include <math.h>
 
-void compute(double** matrix1, double** matrix2, double* matrix3, int arow, int bcols, int brow){
+void compute(double* matrix1, double* matrix2, double** matrix3, int arow, int bcols, int brow){
 	double sum=0;
 	int k, d, c;
 	for (c = 0; c < arow; c++) {
 		for (d = 0; d < bcols; d++){
 			for (k = 0; k < brow; k++) {
 				//1d array ikke 2d
-				sum += (matrix1[c][k])*(matrix2[k][d]);
+				sum += matrix1[c*arow+k]*matrix2[d*bcols+k]; //TODO
 			}
 			// printf("%d %d\n",c, d );
-			matrix3[(c*arow)+d] = sum;
+			matrix3[c][d] = sum;
 			sum = 0;
 		}
 		// printf("\n");
@@ -46,12 +46,13 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 			fclose (fp);
 		}
 		void skrivOmB(double** matrix2, double* matrixB, int rows, int cols){
-			int i, k;
-			for(i=0;i<rows;i++){
-				for(k=0; k<cols;k++){
-					matrixB[i*k+k]=matrix2[k][i];
+			int d, k, teller=0;
+			printf("Rows: %d, COls: %d\n",rows, cols );
+				for (k = 0; k < cols; k++) {
+					for (d = 0; d < rows; d++) {
+						matrixB[teller++]=matrix2[d][k];
+					}
 				}
-			}
 		}
 
 
@@ -60,17 +61,22 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 			char* file1;
 			char* file2;
 			char* outputfile;
-			double** matrix1;
-			double** matrix2;
+			double* matrix1;
+			double* matrix2;
 			double* matrix3;
 			int num_rows1, num_cols1, num_rows2, num_cols2, num_rows3, num_cols3;
 			int num_procs, my_rank, sqr;
 			MPI_Status status;
+			double** matrixA1;
+			double** matrixB2;
 
 			//start open mpi
 			MPI_Init (&argc, &argv);
 			MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
 			MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
+
+			// printf("My rank %d\n", my_rank );
+
 
 			if(my_rank==0){
 
@@ -83,83 +89,143 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 				printf("\nFile1: %s File 2: %s File3: %s\n",file1, file2, outputfile);
 
 			//read matrix 1 and 2
-				read_matrix_binaryformat(file1, &matrix1, &num_rows1, &num_cols1);
-				read_matrix_binaryformat(file2, &matrix2, &num_rows2, &num_cols2);
+				read_matrix_binaryformat(file1, &matrixA1, &num_rows1, &num_cols1);
+				printf("read matrix1 with rows: %d, cols_: %d, sizeof: %d\n",num_rows1, num_cols1,num_cols1*num_rows1);
 
-				if(num_rows1>=num_rows2){	num_rows3=num_rows1;
-				}else{num_rows3=num_rows2;
-				}if(num_cols1>=num_cols2){num_cols3=num_cols1;
-				}else{num_cols3=num_cols2;}
+				read_matrix_binaryformat(file2, &matrixB2, &num_rows2, &num_cols2);
+				printf("read matrix2 with rows: %d, cols_: %d, sizeof: %d\n",num_rows2, num_cols2,num_cols2*num_rows2);
 
+
+
+				num_rows3=num_rows1;
+				num_cols3=num_cols2;
 				sqr=2;
+				printf("matrix 3: Rows: %d Cols: %d\n",num_rows3, num_cols3 );
 				// printf("sqr: %d\n",sqr );
 
 			}
 
 			MPI_Bcast (&sqr, 1, MPI_INT, 0, MPI_COMM_WORLD);
-			MPI_Bcast (&num_cols3, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast (&num_cols1, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			MPI_Bcast (&num_rows3, 1, MPI_INT, 0, MPI_COMM_WORLD);
-			// MPI_Bcast (&num_cols2, 1, MPI_INT, 0, MPI_COMM_WORLD);
-			int loddrett=num_cols3/sqr; //TODO: endres
-			int vannrett=num_rows3/sqr;
-			int pos=num_rows3*vannrett;
-			int hos=num_cols3*loddrett;
-			int restRow=num_rows3%loddrett;
-			int rows;
-			int restCol=num_cols3%cols;
+			MPI_Bcast (&num_cols3, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast (&num_rows2, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+			// int pos=num_rows3*litenRuteRow;
+			// int hos=num_cols3*litenRuteCol;
+			//TODO: sjekke dette kobo har skrevet kode før
+			// if (restRad%my_rank > restRad) {
+			// 	litenRuteRow++;
+			// }
+			// int restCol = num_cols3%sqr;
+			// //TODO: sjekke dette kobo har skrevet kode før
+			// if (restCol%my_rank > restCol) {
+			// 	litenRuteCol++;
+			// }
+
+
 
 			//dele opp arbeids oppgaver
 			if(my_rank==0){
-				double* matrixb[num_rows2*num_cols2];
-				skrivOmB(matrix2, matrixb, num_rows2, num_cols2);
-				deallocate(matrix2);
-				double* peker=matrix1[0];
+				double* matrixb=malloc(num_rows2*num_cols2*sizeof(double));
+				printf("starter flipping\n");
+				skrivOmB(matrixB2, matrixb, num_rows2, num_cols2);
+				printf("ferdig\n");
+				deallocate(matrixB2);
 
+				int rows, cols;
+				int startPos=0, start=0;
 
-				int i;
-		    for(i=0; i<num_procs; i++){
-					if(restRow>0){
-						pos+=num_rows3*restRow;
-					}if(restCol>0){
-						hos+=num_cols3*restCol;
+				int i, j;
+		    for(i=0; i<sqr; i++){
+					int litenRuteRow=num_rows3/sqr;
+					int restRow=num_rows3%sqr;
+
+					int litenRuteCol=num_cols3/sqr;
+					int restCol = num_cols3%sqr;
+
+					if(i<restRow*sqr){
+						litenRuteRow++; //alle gjor dette
 					}
+					if(i<restCol*sqr){
+						litenRuteCol++;
+					}
+
 					rows=i/sqr; //hvilken firkant den er i
-					//send matrix 1
-					MPI_Send(peker[rows*pos], pos, MPI_DOUBLE, i, 1, MPI_COMM_WORLD);
-					//send matrix 2
-					MPI_Send(matrixb[i], hos, MPI_DOUBLE, i, 1, MPI_COMM_WORLD);
-				}
-				deallocate(matrix1);
+					cols=i%sqr;
 
-			}else{
-				printf("My rank %d\n", my_rank );
+					for(j=0; j<sqr; j++){
+						//send matrix 1		//array out of bound exception
+						printf("Sending matrixA1, start: %d, size: %d, to: %d\n",rows*startPos,litenRuteRow*num_cols1 ,i*sqr+j+1 );
+						MPI_Send(matrixA1[rows*startPos], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
+						//send matrix 2
+						// MPI_Send(&matrixb[cols*start*num_rows2], litenRuteCol*num_rows2, MPI_DOUBLE, j*sqr+i+1, 1, MPI_COMM_WORLD);
+
+					}
+					startPos+=litenRuteRow;
+					start+=litenRuteCol;
+
+				}
+				deallocate(matrixA1);
+				free(matrixb);
+
+			}
+			else{
 				//allocate matrix
-				if(restRow>0){
-					pos+=num_rows3*restRow;
-				}if(restCol>0){
-					hos+=num_cols3*restCol;
+				int litenRuteRow=num_rows3/sqr;
+				int restRow=num_rows3%sqr;
+
+				int litenRuteCol=num_cols3/sqr;
+				// printf("litenRuteCol %d\n", litenRuteCol );
+				int restCol = num_cols3%sqr;
+
+				if(my_rank<restRow*sqr){
+					litenRuteRow++;
 				}
-				rows=i/sqr;
+				if(my_rank<restCol*sqr){
+					litenRuteCol++;
+				}
+				// rows=my_rank/sqr;
 
-				matrix1=(double*)malloc(pos*sizeof(double));
-				matrix2=(double*)malloc(hos*sizeof(double));
+				matrix1=(double*)malloc(litenRuteRow*num_cols1*sizeof(double));
+				matrix2=(double*)malloc(litenRuteCol*num_rows2*sizeof(double));
 
-				MPI_Recv(matrix1[0],pos , MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &status);
-				MPI_Recv(matrix2[0],hos, MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
+				printf("My ranK: %d, recieved matrix1 with rows: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteRow, num_cols1, litenRuteRow*num_cols1);
+				MPI_Recv(matrix1,litenRuteRow*num_cols1 , MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &status);
+
+				// printf("My ranKK: %d, recieved matrix2 with cols: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteCol, num_rows2, litenRuteRow*num_rows2);
+				// MPI_Recv(&matrix2[0],litenRuteCol*num_rows2, MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
+
+
 
 				//allocate resultarray as 2d array or 1d array
-				matrix3=(double*)malloc((pos)*(hos)*sizeof(double));
+				// matrix3=(double*)malloc((litenRuteRow)*(litenRuteCol)*sizeof(double));
+				//
+				// double** matrixC= (double**)malloc(den sin lille firkant * sizeof(double*));
+				// int i
+			  // for (i = 0; i < m; i++) {
+			  //   if ((u->image_data[i] = (double*)malloc(sizeof(double)*n)) == NULL) {
+			  //     perror("malloc(): N");
+			  //     // free(u->image_data);
+			  //     free(u);
+			  //     exit(EXIT_FAILURE);
+			  //   }
+			  // }
 
 
-
-				printf("Compute\n");
+				// printf("Compute\n");
 				// int arow, int bcols, int brow TODO: needs to be changed
-				compute(matrix1, matrix2, matrix3, num_rows1, num_cols2, num_rows2);
+				// compute(matrix1, matrix2, matrixC, num_rows1, num_cols2, num_rows2);
 
 				//send array back
-				MPI_Send(matrix3[0], pos*hos, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+				// MPI_Send(matrix3[0], pos*hos, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+
+				free(matrix1);
+				free(matrix2);
+
 			}
 
+			/*
 
 
 			if(my_rank==0){
@@ -170,8 +236,9 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 				int i;
 				for(i=0; i<num_procs; i++){
 					// motta data
-					recv(matrix3[start],lengde,MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
+					recv(matrix3[start], lengde, MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
 					// sette sammendelene
+
 				}
 
 
@@ -183,8 +250,9 @@ void read_matrix_binaryformat (char* filename, double*** matrix, int* num_rows, 
 
 				printf("deallocate\n" );
 				free(matrix3);
-			}
+			// }
 
+*/
 			MPI_Finalize();
 			return 0;
 		}
