@@ -19,4 +19,9 @@ check: compile
 	valgrind --leak-check=full ./oblig $(FILES)
 
 diff:
-	diff small_matrix_a.bin c.bin
+	vimdiff small_matrix_a.bin c.bin
+
+git: clean
+	git add .
+	git commit -m "something is working"
+	git push
