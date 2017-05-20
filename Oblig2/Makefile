@@ -18,8 +18,9 @@ clean:
 check: compile
 	valgrind --leak-check=full ./oblig $(FILES)
 
-diff:
-	vimdiff small_matrix_a.bin c.bin
+	#checking purposes only
+diff: run
+	vimdiff small_matrix_c.bin c.bin
 
 git: clean
 	git add .
