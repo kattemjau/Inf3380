@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 		printf("read matrix2 with rows: %d, cols_: %d, sizeof: %d\n",num_rows2, num_cols2,num_cols2*num_rows2);
 
 
-		sqr=2;
+		sqr=4;
 		// printf("sqr: %d\n",sqr );
 
 	}
@@ -139,6 +139,7 @@ int main(int argc, char *argv[]) {
 
 		int startPos=0, start=0;
 		int i, j;
+		printf("Sender matrixA\n" );
 		for(i=0; i<sqr; i++){
 			int litenRuteRow=num_rows3/sqr;
 			int restRow=num_rows3%sqr;
@@ -148,13 +149,14 @@ int main(int argc, char *argv[]) {
 			}
 			for(j=0; j<sqr; j++){
 				rows=(i*sqr+j)/sqr;
-				// printf("Sending matrixA1, start: %d, size: %d, to: %d\n",rows*startPos,litenRuteRow*num_cols1 ,i*sqr+j );
-				MPI_Send(matrixA1[rows*startPos], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
+				// printf("Sending matrixA1, start: %d, size: %d, to: %d\n",rows*litenRuteRow,litenRuteRow*num_cols1 ,i*sqr+j );
+				MPI_Send(matrixA1[rows*litenRuteRow], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
 			}
-			startPos+=litenRuteRow;
+			// startPos+=litenRuteRow;
 		}
 		deallocate(matrixA1);
 
+		printf("Sender matrixB\n" );
 		for(i=0; i<sqr; i++){
 			int litenRuteCol=num_cols3/sqr;
 			int restCol = num_cols3%sqr;
@@ -164,7 +166,7 @@ int main(int argc, char *argv[]) {
 			}
 			for(j=0; j<sqr; j++){
 				cols=(j*sqr+i)%sqr;
-				// printf("Sending matrixb, start: %d, size: %d, to: %d\n",cols*start*num_rows2,litenRuteCol*num_rows2 ,j*sqr+i);
+				printf("Sending matrixb, start: %d, size: %d, to: %d\n",cols*start*num_rows2,litenRuteCol*num_rows2 ,j*sqr+i+1);
 				MPI_Send(&matrixb[cols*start*num_rows2], litenRuteCol*num_rows2, MPI_DOUBLE, j*sqr+i+1, 1, MPI_COMM_WORLD);
 			}
 			start+=litenRuteCol;
@@ -196,8 +198,8 @@ int main(int argc, char *argv[]) {
 		// printf("My ranK: %d, reading matrix with size: %d * %d\n",my_rank, litenRuteRow, litenRuteCol);
 		MPI_Recv(&matrix1[0],litenRuteRow*num_cols1 , MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &status);
 
-		// printf("My ranKK: %d, recieved matrix2 with cols: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteCol, num_rows2, litenRuteRow*num_rows2);
 		MPI_Recv(&matrix2[0],litenRuteCol*num_rows2, MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
+		printf("My ranKK: %d, recieved matrix2 with cols: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteCol, num_rows2,litenRuteCol*litenRuteRow );
 
 
 
@@ -222,10 +224,10 @@ int main(int argc, char *argv[]) {
 		compute(matrix1, matrix2, matrix3, num_cols1, litenRuteCol, num_rows2, litenRuteRow);
 
 		//send array back
-		printf("my ranK: %d, SENDING DATA\n", my_rank);
+		// printf("my ranK: %d, SENDING DATA\n", my_rank);
 		MPI_Send(&matrix3[0], litenRuteRow*litenRuteCol, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
 
-		printf("Sending complete for: %d\n",my_rank );
+		// printf("Sending complete for: %d\n",my_rank );
 		free(matrix1);
 		free(matrix2);
 		free(matrix3);
@@ -260,7 +262,8 @@ int main(int argc, char *argv[]) {
 			// int index=0;
 			double tempArr[litenRuteRow*litenRuteCol];
 			memset(tempArr, 0, sizeof(tempArr));
-			// printf("liten rute col: %d, litenRuteRow, %d\n",litenRuteCol, litenRuteRow );
+			printf("liten rute col: %d, litenRuteRow, %d\n",litenRuteCol, litenRuteRow );
+			printf("PROC NUM %d\n", i);
 			// motta data TODO: dosent wait for data
 			MPI_Recv(tempArr, litenRuteCol*litenRuteRow, MPI_DOUBLE, i+1, 1 , MPI_COMM_WORLD, &status);
 			// sette sammendelene
@@ -271,16 +274,17 @@ int main(int argc, char *argv[]) {
 			//
 			// 	}
 			// }
+			// printf("sizeof: %d\n",sizeof(tempArr) );
 
 			bredde_til_neste = num_cols3 - litenRuteCol;
 			// printf(" bruhsni %d , ", bredde_til_neste );
-			// printf("%d teller: %d\n", i, teller);
+			// printf("%d thinkg: %d\n", i, i/sqr+1);
       teller = startPos;
       //legge inn i res-array
       int j;
       for(j = 0; j < litenRuteCol*litenRuteRow; j++){
         matrix3[teller] = tempArr[j];
-				printf("%d ", teller);
+				// printf("%d ", j);
         if (((j+1) % litenRuteCol )== 0 && j!=0){
 					// printf("%d teller: %d\n",i,  teller);
           teller += bredde_til_neste+1;
@@ -291,14 +295,15 @@ int main(int argc, char *argv[]) {
       }
 
 			if ((i+1) % sqr == 0) {
-		         startPos = litenRuteRow*num_cols3;
+		        //  startPos += litenRuteRow*litenRuteCol; //- ((sqr-1)*litenRuteCol);
+						startPos = teller - ((sqr-1)*litenRuteCol);
 		       } else {
 		         startPos += litenRuteRow;
 		       }
 
+					//  printf("\n\n\n");
 			// free(tempArr);
 		}
-
 
 
 
@@ -310,7 +315,7 @@ int main(int argc, char *argv[]) {
 		free(matrix3);
 	}
 
-	printf("Killing thread: %d\n", my_rank);
+	// printf("Killing thread: %d\n", my_rank);
 	MPI_Finalize();
 	return 0;
 }
