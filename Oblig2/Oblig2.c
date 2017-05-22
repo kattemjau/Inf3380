@@ -2,11 +2,15 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <string.h>
+#include <omp.h>
+
+OMP_NUM_THREADS=4;
 
 void compute(double* matrix1, double* matrix2, double* matrix3, int acol, int bcols, int brow, int arow){
 	double sum=0;
 	int k, d, c, teller=0;
 	// printf("arow: %d, bcols %d, brow %d, acols %d\n", arow, bcols, brow, acol);
+	#pragma omp for
 	for (c = 0; c < arow; c++) {
 		for (d = 0; d < bcols; d++){
 			for (k = 0; k < brow; k++) {
@@ -148,11 +152,11 @@ int main(int argc, char *argv[]) {
 				litenRuteRow++; //alle gjor dette
 			}
 			for(j=0; j<sqr; j++){
-				rows=(i*sqr+j)/sqr;
-				// printf("Sending matrixA1, start: %d, size: %d, to: %d\n",rows*litenRuteRow,litenRuteRow*num_cols1 ,i*sqr+j );
-				MPI_Send(matrixA1[rows*litenRuteRow], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
+				// rows=(i*sqr+j)/sqr;
+				printf("Sending matrixA1, start: %d, size: %d, to: %d\n",startPos,litenRuteRow*num_cols1 ,i*sqr+j+1 );
+				MPI_Send(matrixA1[startPos], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
 			}
-			// startPos+=litenRuteRow;
+			startPos+=litenRuteRow;
 		}
 		deallocate(matrixA1);
 
@@ -165,9 +169,9 @@ int main(int argc, char *argv[]) {
 				litenRuteCol++;
 			}
 			for(j=0; j<sqr; j++){
-				cols=(j*sqr+i)%sqr;
-				printf("Sending matrixb, start: %d, size: %d, to: %d\n",cols*start*num_rows2,litenRuteCol*num_rows2 ,j*sqr+i+1);
-				MPI_Send(&matrixb[cols*start*num_rows2], litenRuteCol*num_rows2, MPI_DOUBLE, j*sqr+i+1, 1, MPI_COMM_WORLD);
+				// cols=(j*sqr+i)%sqr;
+				// printf("Sending matrixb, start: %d, size: %d, to: %d\n",start*num_rows2,litenRuteCol*num_rows2 ,(j*sqr+i+1));
+				MPI_Send(&matrixb[start*num_rows2], litenRuteCol*num_rows2, MPI_DOUBLE, (j*sqr+i+1), 1, MPI_COMM_WORLD);
 			}
 			start+=litenRuteCol;
 		}
@@ -199,7 +203,7 @@ int main(int argc, char *argv[]) {
 		MPI_Recv(&matrix1[0],litenRuteRow*num_cols1 , MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &status);
 
 		MPI_Recv(&matrix2[0],litenRuteCol*num_rows2, MPI_DOUBLE, 0, 1 , MPI_COMM_WORLD, &status);
-		printf("My ranKK: %d, recieved matrix2 with cols: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteCol, num_rows2,litenRuteCol*litenRuteRow );
+		// printf("My ranKK: %d, recieved matrix2 with cols: %d, cols_: %d, sizeof: %d\n",my_rank, litenRuteCol, num_rows2,litenRuteCol*litenRuteRow );
 
 
 
@@ -241,7 +245,7 @@ int main(int argc, char *argv[]) {
 		printf("matrix 3: Rows: %d Cols: %d\n",num_rows3, num_cols3 );
 		matrix3 = (double*)malloc((num_rows3)*(num_cols3)*sizeof(double));
 		//recieve data from children
-		int i, j, k, startPos=0, teller, bredde_til_neste;
+		int i, startPos=0, teller, bredde_til_neste;
 		for(i=0; i<num_procs-1; i++){
 			int litenRuteRow=num_rows3/sqr;
 			int restRow=num_rows3%sqr;
@@ -256,14 +260,13 @@ int main(int argc, char *argv[]) {
 				litenRuteCol++;
 			}
 
-			rows=i/sqr; //hvilken firkant den er i
-			cols=i%sqr;
+			// rows=i/sqr; //hvilken firkant den er i
+			// cols=i%sqr;
 
 			// int index=0;
 			double tempArr[litenRuteRow*litenRuteCol];
 			memset(tempArr, 0, sizeof(tempArr));
-			printf("liten rute col: %d, litenRuteRow, %d\n",litenRuteCol, litenRuteRow );
-			printf("PROC NUM %d\n", i);
+			printf("PROC NUM %d liten rute col: %d, litenRuteRow, %d\n",i,litenRuteCol, litenRuteRow );
 			// motta data TODO: dosent wait for data
 			MPI_Recv(tempArr, litenRuteCol*litenRuteRow, MPI_DOUBLE, i+1, 1 , MPI_COMM_WORLD, &status);
 			// sette sammendelene
@@ -296,9 +299,9 @@ int main(int argc, char *argv[]) {
 
 			if ((i+1) % sqr == 0) {
 		        //  startPos += litenRuteRow*litenRuteCol; //- ((sqr-1)*litenRuteCol);
-						startPos = teller - ((sqr-1)*litenRuteCol);
+						startPos = teller - (num_cols3 - litenRuteCol);
 		       } else {
-		         startPos += litenRuteRow;
+		         startPos += litenRuteCol;
 		       }
 
 					//  printf("\n\n\n");

@@ -6,7 +6,7 @@ run: clear compile
 	mpirun -np 17 ./oblig $(FILES)
 
 compile:
-	mpicc Oblig2.c -o oblig $(ARGS)
+	mpicc -fopenmp Oblig2.c -o oblig $(ARGS)
 
 clear:
 	clear
