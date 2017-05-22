@@ -4,7 +4,7 @@ FILES=small_matrix_a.bin small_matrix_b.bin c.bin
 THREADS=17
 SQR=4
 
-run: clear compile
+run: compile
 	mpirun -np $(THREADS) ./oblig $(FILES) $(SQR)
 
 compile:
