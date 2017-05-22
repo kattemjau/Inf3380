@@ -85,8 +85,8 @@ int main(int argc, char *argv[]) {
 
 	if(my_rank==0){
 
-		if(argc!=4){
-			printf("Usage: ./'program' file1 file2 outputfile\n");
+		if(argc!=5){
+			printf("Usage: ./'program' file1 file2 outputfile squareroot\n");
 		}
 		file1=argv[1];
 		file2=argv[2];
@@ -101,7 +101,11 @@ int main(int argc, char *argv[]) {
 		printf("read matrix2 with rows: %d, cols_: %d, sizeof: %d\n",num_rows2, num_cols2,num_cols2*num_rows2);
 
 
-		sqr=4;
+		sqr=atoi(argv[4]);
+		if((sqr*sqr+1)!=num_procs){
+			printf("Sqr is wrong!\n");
+			return EXIT_FAILURE;
+		}
 		// printf("sqr: %d\n",sqr );
 
 	}
@@ -129,7 +133,6 @@ int main(int argc, char *argv[]) {
 	// }
 
 
-	int rows, cols;
 
 	//dele opp arbeids oppgaver
 	if(my_rank==0){
@@ -143,7 +146,7 @@ int main(int argc, char *argv[]) {
 
 		int startPos=0, start=0;
 		int i, j;
-		printf("Sender matrixA\n" );
+		// printf("Sender matrixA\n" );
 		for(i=0; i<sqr; i++){
 			int litenRuteRow=num_rows3/sqr;
 			int restRow=num_rows3%sqr;
@@ -153,14 +156,14 @@ int main(int argc, char *argv[]) {
 			}
 			for(j=0; j<sqr; j++){
 				// rows=(i*sqr+j)/sqr;
-				printf("Sending matrixA1, start: %d, size: %d, to: %d\n",startPos,litenRuteRow*num_cols1 ,i*sqr+j+1 );
+				// printf("Sending matrixA1, start: %d, size: %d, to: %d\n",startPos,litenRuteRow*num_cols1 ,i*sqr+j+1 );
 				MPI_Send(matrixA1[startPos], litenRuteRow*num_cols1, MPI_DOUBLE, i*sqr+j+1, 1, MPI_COMM_WORLD);
 			}
 			startPos+=litenRuteRow;
 		}
 		deallocate(matrixA1);
 
-		printf("Sender matrixB\n" );
+		// printf("Sender matrixB\n" );
 		for(i=0; i<sqr; i++){
 			int litenRuteCol=num_cols3/sqr;
 			int restCol = num_cols3%sqr;
@@ -266,7 +269,7 @@ int main(int argc, char *argv[]) {
 			// int index=0;
 			double tempArr[litenRuteRow*litenRuteCol];
 			memset(tempArr, 0, sizeof(tempArr));
-			printf("PROC NUM %d liten rute col: %d, litenRuteRow, %d\n",i,litenRuteCol, litenRuteRow );
+			// printf("PROC NUM %d liten rute col: %d, litenRuteRow, %d\n",i,litenRuteCol, litenRuteRow );
 			// motta data TODO: dosent wait for data
 			MPI_Recv(tempArr, litenRuteCol*litenRuteRow, MPI_DOUBLE, i+1, 1 , MPI_COMM_WORLD, &status);
 			// sette sammendelene

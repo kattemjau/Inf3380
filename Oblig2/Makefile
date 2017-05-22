@@ -1,9 +1,11 @@
 ARGS= -Wall -Wextra -std=c99 -O2 -g
 FILES=small_matrix_a.bin small_matrix_b.bin c.bin
 # FILES2=mina.bin minb.bin minc.bin
+THREADS=17
+SQR=4
 
 run: clear compile
-	mpirun -np 17 ./oblig $(FILES)
+	mpirun -np $(THREADS) ./oblig $(FILES) $(SQR)
 
 compile:
 	mpicc -fopenmp Oblig2.c -o oblig $(ARGS)
@@ -22,7 +24,7 @@ check: compile
 diff: run
 	diff small_matrix_c.bin c.bin
 
-git: clean
+git:
 	git add .
 	git commit -m "something is working"
 	git push
